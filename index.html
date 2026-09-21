@@ -226,13 +226,13 @@ body{
     text-transform:none;
 }
 
-.secao--relatorios .secao-titulo .icone{
+.secao--gold .secao-titulo .icone{
     background:rgba(253,217,152,.15);
     color:var(--gold);
     border:1px solid var(--gold);
 }
 
-.secao--operacao .secao-titulo .icone{
+.secao--orange .secao-titulo .icone{
     background:rgba(228,139,0,.15);
     color:var(--orange);
     border:1px solid var(--orange);
@@ -256,7 +256,7 @@ body{
     transition:.2s;
 }
 
-.secao--operacao .card{
+.secao--orange .card{
     border-left-color:var(--orange);
 }
 
@@ -408,23 +408,7 @@ footer a:hover{
 
     </div>
 
-    <div class="secao secao--relatorios">
-        <div class="secao-titulo">
-            <span class="icone">📊</span>
-            Relatórios
-            <span class="contagem" id="contagemRelatorios"></span>
-        </div>
-        <div class="grid" id="gridRelatorios"></div>
-    </div>
-
-    <div class="secao secao--operacao">
-        <div class="secao-titulo">
-            <span class="icone">⚙️</span>
-            Operação
-            <span class="contagem" id="contagemOperacao"></span>
-        </div>
-        <div class="grid" id="gridOperacao"></div>
-    </div>
+    <div id="secoes"></div>
 
     <footer>
         <a href="https://github.com/ComercialZaffariCD107?tab=repositories" target="_blank">Ver todos no GitHub →</a>
@@ -437,26 +421,41 @@ footer a:hover{
 // =====================================================
 // FERRAMENTAS
 // Lista zerada — adicione um objeto por ferramenta aqui
-// (categoria: "relatorios" ou "operacao"). O resto
+// (categoria: uma das ids de CATEGORIAS abaixo). O resto
 // (linguagem, data de atualização) é resolvido
 // automaticamente via API do GitHub.
 // =====================================================
+
+// categorias (abas) exibidas na página, na ordem em que aparecem.
+// acento: "gold" ou "orange" (cor do ícone e da borda dos cards)
+const CATEGORIAS = [
+    { id: "relatorios",    titulo: "Relatórios",    icone: "📊", acento: "gold"   },
+    { id: "operacao",      titulo: "Operação",      icone: "⚙️", acento: "orange" },
+    { id: "ressuprimento", titulo: "Ressuprimento", icone: "🚚", acento: "gold"   },
+    { id: "inventario",    titulo: "Inventário",    icone: "📦", acento: "orange" },
+];
 
 const FERRAMENTAS = [
 
     // ---------- RELATÓRIOS ----------
 
     { nome: "Análise de Pedidos Antigos", descricao: "Cruzamento de pedidos e status de etiquetas por carga, loja e produto.", url: "https://comercialzaffaricd107.github.io/An-lise-de-pedidos-antigos/", categoria: "relatorios" },
-    { nome: "Comparativo de Estoque", descricao: "Divergências de estoque com impacto financeiro (ganho/perda) e exportação para WhatsApp.", url: "https://comercialzaffaricd107.github.io/Comparativo-de-estoque-/", categoria: "relatorios" },
     { nome: "Rejeito Geral", descricao: "Acompanhamento de rejeições com quebra por hora, motivos e exportação para WhatsApp.", url: "https://comercialzaffaricd107.github.io/Rejeito-Geral/", categoria: "relatorios" },
     { nome: "Operação Clara", descricao: "Relatórios de logística simplificados, com importação de arquivos direto no navegador.", url: "https://comercialzaffaricd107.github.io/Opera-o-clara/", categoria: "relatorios" },
 
     // ---------- OPERAÇÃO ----------
 
-    { nome: "Gerador de Abastecimento", descricao: "Gera sugestões de reabastecimento a partir de posições WMS e pedidos do Metabase.", url: "https://comercialzaffaricd107.github.io/Gerador-de-abastecimento-/", categoria: "operacao" },
     { nome: "Pendência PTL", descricao: "Controle de pendências PTL por pavilhão, com limite de pulmões e indicador de excedente.", url: "https://comercialzaffaricd107.github.io/Pend-ncia-PTL/", categoria: "operacao" },
     { nome: "Pendência Rejeito", descricao: "Consulta de pendentes no Sorter por bipagem de código de barras (DUN/EAN), com paletização e impressão.", url: "https://comercialzaffaricd107.github.io/Pend-ncia-rejeito-/", categoria: "operacao" },
-    { nome: "Inventário Rotativo SKU", descricao: "Acurácia e divergências do inventário por SKU, com histórico mensal, evolução e itens recorrentes.", url: "https://comercialzaffaricd107.github.io/Invent-rio-rotativo-SKU/", categoria: "operacao" },
+
+    // ---------- RESSUPRIMENTO ----------
+
+    { nome: "Gerador de Abastecimento", descricao: "Gera sugestões de reabastecimento a partir de posições WMS e pedidos do Metabase.", url: "https://comercialzaffaricd107.github.io/Gerador-de-abastecimento-/", categoria: "ressuprimento" },
+
+    // ---------- INVENTÁRIO ----------
+
+    { nome: "Inventário Rotativo SKU", descricao: "Acurácia e divergências do inventário por SKU, com histórico mensal, evolução e itens recorrentes.", url: "https://comercialzaffaricd107.github.io/Invent-rio-rotativo-SKU/", categoria: "inventario" },
+    { nome: "Comparativo de Estoque", descricao: "Divergências de estoque com impacto financeiro (ganho/perda) e exportação para WhatsApp.", url: "https://comercialzaffaricd107.github.io/Comparativo-de-estoque-/", categoria: "inventario" },
 
 ];
 
@@ -636,29 +635,57 @@ function montarVazioHtml(){
 
 }
 
+// monta as seções (uma por categoria) uma única vez
+
+function criarSecoes(){
+
+    document.getElementById("secoes").innerHTML =
+    CATEGORIAS.map(cat => `
+    <div class="secao secao--${cat.acento}">
+        <div class="secao-titulo">
+            <span class="icone">${cat.icone}</span>
+            ${cat.titulo}
+            <span class="contagem" id="contagem-${cat.id}"></span>
+        </div>
+        <div class="grid" id="grid-${cat.id}"></div>
+    </div>
+    `).join("");
+
+}
+
+// preenche os cards de cada categoria.
+// resultados: [{ ferramenta, dados }]
+
+function renderizarSecoes(resultados){
+
+    CATEGORIAS.forEach(cat => {
+
+        const itens =
+        resultados.filter(r => r.ferramenta.categoria === cat.id);
+
+        document.getElementById(`grid-${cat.id}`).innerHTML =
+        itens.length
+        ? itens.map(r => montarCardHtml(r.ferramenta, r.dados)).join("")
+        : montarVazioHtml();
+
+        document.getElementById(`contagem-${cat.id}`).innerText =
+        `${itens.length} ferramenta${itens.length === 1 ? "" : "s"}`;
+
+    });
+
+}
+
 function renderizarEsqueleto(){
 
-    const relatorios =
-    FERRAMENTAS.filter(f => f.categoria === "relatorios");
+    if(!document.getElementById("secoes").children.length){
 
-    const operacao =
-    FERRAMENTAS.filter(f => f.categoria === "operacao");
+        criarSecoes();
 
-    document.getElementById("gridRelatorios").innerHTML =
-    relatorios.length
-    ? relatorios.map(f => montarCardHtml(f, null)).join("")
-    : montarVazioHtml();
+    }
 
-    document.getElementById("gridOperacao").innerHTML =
-    operacao.length
-    ? operacao.map(f => montarCardHtml(f, null)).join("")
-    : montarVazioHtml();
-
-    document.getElementById("contagemRelatorios").innerText =
-    `${relatorios.length} ferramenta${relatorios.length === 1 ? "" : "s"}`;
-
-    document.getElementById("contagemOperacao").innerText =
-    `${operacao.length} ferramenta${operacao.length === 1 ? "" : "s"}`;
+    renderizarSecoes(
+        FERRAMENTAS.map(f => ({ ferramenta: f, dados: null }))
+    );
 
 }
 
@@ -775,21 +802,7 @@ async function carregarTudo(forcadoPeloUsuario){
 
     });
 
-    const relatorios =
-    resultados.filter(r => r.ferramenta.categoria === "relatorios");
-
-    const operacao =
-    resultados.filter(r => r.ferramenta.categoria === "operacao");
-
-    document.getElementById("gridRelatorios").innerHTML =
-    relatorios.length
-    ? relatorios.map(r => montarCardHtml(r.ferramenta, r.dados)).join("")
-    : montarVazioHtml();
-
-    document.getElementById("gridOperacao").innerHTML =
-    operacao.length
-    ? operacao.map(r => montarCardHtml(r.ferramenta, r.dados)).join("")
-    : montarVazioHtml();
+    renderizarSecoes(resultados);
 
     document.getElementById("horaAtualizacao").innerText =
     erro
