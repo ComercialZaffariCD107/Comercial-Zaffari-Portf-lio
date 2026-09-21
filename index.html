@@ -442,6 +442,7 @@ const FERRAMENTAS = [
     { nome: "Análise de Pedidos Antigos", descricao: "Cruzamento de pedidos e status de etiquetas por carga, loja e produto.", url: "https://comercialzaffaricd107.github.io/An-lise-de-pedidos-antigos/", categoria: "relatorios" },
     { nome: "Rejeito Geral", descricao: "Acompanhamento de rejeições com quebra por hora, motivos e exportação para WhatsApp.", url: "https://comercialzaffaricd107.github.io/Rejeito-Geral/", categoria: "relatorios" },
     { nome: "Operação Clara", descricao: "Relatórios de logística simplificados, com importação de arquivos direto no navegador.", url: "https://comercialzaffaricd107.github.io/Opera-o-clara/", categoria: "relatorios" },
+    { nome: "Acompanhamento de Pendências", descricao: "Relatórios de pendências cruzando Velox (Sorter), Stage-IN e endereços de ruas fixas.", url: "https://comercialzaffaricd107-cloud.github.io/Acompanhamento-Pendencias/", categoria: "relatorios" },
 
     // ---------- OPERAÇÃO ----------
 
@@ -465,6 +466,32 @@ const INTERVALO_AUTO_ATUALIZACAO_MS = 5 * 60 * 1000; // 5 minutos
 
 // extrai o nome do repositório a partir da URL do
 // GitHub Pages (https://usuario.github.io/NOME-DO-REPO/)
+
+// o usuário do GitHub vem do subdomínio de "usuario.github.io".
+// se a URL não for github.io, usa o usuário padrão.
+
+function extrairUsuario(url){
+
+    try{
+
+        const host = new URL(url).hostname.toLowerCase();
+
+        if(host.endsWith(".github.io")){
+
+            return host.replace(".github.io", "");
+
+        }
+
+    }
+    catch(erro){
+
+        console.error("URL inválida:", url, erro);
+
+    }
+
+    return USUARIO_GITHUB.toLowerCase();
+
+}
 
 function extrairNomeRepo(url){
 
@@ -694,18 +721,18 @@ function renderizarEsqueleto(){
 // pra economizar o limite de requisições do GitHub
 // (60/hora por IP sem login).
 
-async function buscarTodosOsRepos(){
+async function buscarReposDoUsuario(usuario){
 
     try{
 
         const resposta = await fetch(
-            `https://api.github.com/users/${USUARIO_GITHUB}/repos?per_page=100`
+            `https://api.github.com/users/${usuario}/repos?per_page=100`
         );
 
         if(!resposta.ok){
 
             console.warn(
-                `API do GitHub respondeu ${resposta.status} ao listar repositórios.`
+                `API do GitHub respondeu ${resposta.status} ao listar repositórios de ${usuario}.`
             );
 
             return { erro: resposta.status };
@@ -714,27 +741,63 @@ async function buscarTodosOsRepos(){
 
         const lista = await resposta.json();
 
-        const mapaPorNome = {};
+        const mapa = {};
 
         lista.forEach(repo => {
 
-            mapaPorNome[repo.name] = {
+            mapa[repo.name] = {
                 pushed_at: repo.pushed_at,
                 language: repo.language
             };
 
         });
 
-        return { mapaPorNome };
+        return { mapa };
 
     }
     catch(erro){
 
-        console.error("Erro ao buscar repositórios:", erro);
+        console.error("Erro ao buscar repositórios de", usuario, erro);
 
         return { erro: "rede" };
 
     }
+
+}
+
+// uma chamada por usuário distinto presente na lista
+// (normalmente 1 ou 2), pra economizar o limite da API.
+// retorna { mapaPorUsuario: {usuario: {repo: dados}}, errosPorUsuario: {usuario: erro} }
+
+async function buscarTodosOsRepos(){
+
+    const usuarios = [
+        ...new Set(FERRAMENTAS.map(f => extrairUsuario(f.url)))
+    ];
+
+    const respostas = await Promise.all(
+        usuarios.map(u => buscarReposDoUsuario(u))
+    );
+
+    const mapaPorUsuario = {};
+    const errosPorUsuario = {};
+
+    usuarios.forEach((u, i) => {
+
+        if(respostas[i].erro){
+
+            errosPorUsuario[u] = respostas[i].erro;
+
+        }
+        else{
+
+            mapaPorUsuario[u] = respostas[i].mapa;
+
+        }
+
+    });
+
+    return { mapaPorUsuario, errosPorUsuario };
 
 }
 
@@ -773,28 +836,32 @@ async function carregarTudo(forcadoPeloUsuario){
 
     }
 
-    const { mapaPorNome, erro } = await buscarTodosOsRepos();
+    const { mapaPorUsuario, errosPorUsuario } = await buscarTodosOsRepos();
+
+    const erro = Object.values(errosPorUsuario)[0];
 
     const resultados =
     FERRAMENTAS.map(ferramenta => {
 
         const repo = extrairNomeRepo(ferramenta.url);
 
+        const usuario = extrairUsuario(ferramenta.url);
+
         let dados;
 
-        if(erro){
+        if(errosPorUsuario[usuario]){
 
             dados = "erro";
 
         }
-        else if(!repo || !mapaPorNome[repo]){
+        else if(!repo || !mapaPorUsuario[usuario]?.[repo]){
 
             dados = undefined;
 
         }
         else{
 
-            dados = mapaPorNome[repo];
+            dados = mapaPorUsuario[usuario][repo];
 
         }
 
